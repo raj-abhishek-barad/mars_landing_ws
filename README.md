@@ -1,6 +1,6 @@
 # Mars Soft Landing Simulation
 
-A ROS2 + Gazebo Harmonic simulation of Mars powered descent guidance using **Method C** — a robust terrain-aware guidance law combining ZEM/ZEV optimal guidance, barrier penalty functions, and a Modified Super-Twisting Sliding Mode (MSS) robust term.
+A ROS2 + Gazebo Harmonic simulation of Mars powered descent guidance using **ROBUST CLOSING VELOCITY PENALTY TERM** — a robust terrain-aware guidance law combining ZEM/ZEV optimal guidance, barrier penalty functions, and a Modified Super-Twisting Sliding Mode (MSS) robust term.
 
 ## Features
 
