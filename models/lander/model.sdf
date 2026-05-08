@@ -1,0 +1,118 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="lander">
+    <static>false</static>
+
+    <!-- FIXED: plugins must be at model level, not inside link -->
+    <plugin filename="gz-sim-odometry-publisher-system"
+            name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>world</odom_frame>
+      <robot_base_frame>lander</robot_base_frame>
+      <publish_rate>50</publish_rate>
+    </plugin>
+
+    <plugin filename="gz-sim-apply-link-wrench-system"
+            name="gz::sim::systems::ApplyLinkWrench"/>
+
+    <link name="body">
+      <!-- Initial condition: case 3 from PDG script -->
+      <pose>900 800 2200 0 0 0</pose>
+
+      <inertial>
+        <mass>2000</mass>
+        <inertia>
+          <ixx>100</ixx><iyy>100</iyy><izz>50</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+
+      <collision name="collision">
+        <geometry><box><size>2 2 2</size></box></geometry>
+      </collision>
+
+      <visual name="visual">
+        <geometry><box><size>2 2 2</size></box></geometry>
+        <material>
+          <ambient>0.7 0.7 0.8 1</ambient>
+          <diffuse>0.7 0.7 0.8 1</diffuse>
+        </material>
+      </visual>
+
+      <!-- IMU: 100Hz, realistic noise -->
+      <sensor name="imu" type="imu">
+        <always_on>true</always_on>
+        <update_rate>100</update_rate>
+        <topic>/imu/data</topic>
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"><mean>0</mean><stddev>0.001</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>0.001</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>0.001</stddev></noise></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"><mean>0</mean><stddev>0.01</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>0.01</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>0.01</stddev></noise></z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+
+      <!--
+        Monocular downward-looking camera.
+        FOV 60deg, 640x480 RGB.
+        Pose: 1m below body center, rotated 90deg to point down.
+        FIXED: added <clip> (was missing) and <always_on>
+      -->
+      <sensor name="monocular_camera" type="camera">
+        <always_on>true</always_on>
+        <update_rate>5</update_rate>   <!-- 5Hz is enough for terrain mapping -->
+        <topic>/camera/image_raw</topic>
+        <pose>0 0 -1 0 1.5708 0</pose>  <!-- point downward -->
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>320</width>   <!-- FIXED: halved for performance -->
+            <height>240</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.5</near>
+            <far>3000.0</far>
+          </clip>
+        </camera>
+      </sensor>
+
+      <!--
+        Single-beam downward altimeter (laser rangefinder).
+        FIXED: pose corrected — 0 1.5707 0 points ray downward (-Z).
+        Publishes range to terrain directly below lander.
+      -->
+      <sensor name="altimeter" type="ray">
+        <always_on>true</always_on>
+        <update_rate>50</update_rate>
+        <topic>/altimeter/scan</topic>
+        <pose>0 0 -1 0 1.5708 0</pose>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>1</samples>
+              <resolution>1</resolution>
+              <min_angle>0</min_angle>
+              <max_angle>0</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>0.1</min>
+            <max>3000.0</max>
+            <resolution>0.01</resolution>
+          </range>
+          <noise type="gaussian">
+            <mean>0</mean>
+            <stddev>0.1</stddev>
+          </noise>
+        </ray>
+      </sensor>
+
+    </link>
+  </model>
+</sdf>

@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.so
+
+# ROS2
+log/
+install/
+build/
+*.pyc
+
+# Gazebo cache
+~/.gz/sim/
+
+# Large binary files (add manually or use Git LFS)
+*.png
+*.dae
+*.obj
+*.mtl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

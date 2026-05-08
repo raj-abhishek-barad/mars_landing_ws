@@ -1,0 +1,52 @@
+# EKF Configuration for Mars Lander Localisation
+# Uses IMU + altimetry (no GPS — Mars EDL scenario)
+# robot_localization package
+
+ekf_filter_node:
+  ros__parameters:
+    frequency: 50.0
+    sensor_timeout: 0.1
+    two_d_mode: false          # full 3D localisation
+    publish_tf: true
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom
+
+    # IMU: provides orientation, angular velocity, linear acceleration
+    imu0: /imu/data
+    imu0_config: [false, false, false,   # x,y,z position    — NOT from IMU
+                  true,  true,  true,    # roll,pitch,yaw    — from IMU
+                  false, false, false,   # vx,vy,vz          — NOT from IMU
+                  true,  true,  true,    # vroll,vpitch,vyaw — from IMU
+                  true,  true,  true]    # ax,ay,az          — from IMU
+    imu0_differential: false
+    imu0_remove_gravitational_acceleration: true
+    imu0_queue_size: 10
+
+    # Altimeter: provides Z position measurement
+    pose0: /lander/altimetry
+    pose0_config: [false, false, true,   # x,y — unknown,  z — from altimeter
+                   false, false, false,  # orientation — not from altimeter
+                   false, false, false,  # velocity — not from altimeter
+                   false, false, false,  # angular velocity — not
+                   false, false, false]  # acceleration — not
+    pose0_differential: false
+    pose0_queue_size: 10
+
+    # Process noise — tuned for Mars EDL dynamics
+    process_noise_covariance: [0.5,  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+                                0,    0.5,  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+                                0,    0,    0.5,  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+                                0,    0,    0,    0.3,  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+                                0,    0,    0,    0,    0.3,  0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+                                0,    0,    0,    0,    0,    0.3,  0,    0,    0,    0,    0,    0,    0,    0,    0,
+                                0,    0,    0,    0,    0,    0,    0.5,  0,    0,    0,    0,    0,    0,    0,    0,
+                                0,    0,    0,    0,    0,    0,    0,    0.5,  0,    0,    0,    0,    0,    0,    0,
+                                0,    0,    0,    0,    0,    0,    0,    0,    0.5,  0,    0,    0,    0,    0,    0,
+                                0,    0,    0,    0,    0,    0,    0,    0,    0,    0.3,  0,    0,    0,    0,    0,
+                                0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.3,  0,    0,    0,    0,
+                                0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.3,  0,    0,    0,
+                                0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5,  0,    0,
+                                0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5,  0,
+                                0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0.5]

@@ -1,0 +1,35 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="mars_terrain">
+    <static>true</static>
+    <link name="link">
+
+      <collision name="collision">
+        <geometry>
+          <heightmap>
+            <uri>model://mars_terrain/materials/textures/terrain_8bit.png</uri>
+            <size>500 500 250</size>
+            <pos>0 0 -125</pos>
+          </heightmap>
+        </geometry>
+      </collision>
+
+      <visual name="visual">
+        <material>
+          <script>
+            <uri>model://mars_terrain/materials/scripts/mars.material</uri>
+            <name>MarsTerrainMaterial</name>
+          </script>
+        </material>
+        <geometry>
+          <heightmap>
+            <uri>model://mars_terrain/materials/textures/terrain_8bit.png</uri>
+            <size>500 500 250</size>
+            <pos>0 0 -125</pos>
+          </heightmap>
+        </geometry>
+      </visual>
+
+    </link>
+  </model>
+</sdf>

@@ -1,0 +1,12 @@
+# ROS2 packages (install via apt)
+# ros-jazzy-ros-gz-bridge
+# ros-jazzy-robot-localization
+# ros-jazzy-cv-bridge
+
+# Python packages
+numpy>=1.24.0
+opencv-python>=4.8.0
+
+# Optional: monocular depth estimation
+# torch>=2.0.0
+# torchvision>=0.15.0
