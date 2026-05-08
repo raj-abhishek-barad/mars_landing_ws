@@ -133,5 +133,4 @@ Target   : [0, 0, 0] m at [0, 0, 0] m/s
 
 ## References
 
-- Blackmore et al., "Lossless Convexification of Nonconvex Control Bound and Pointing Constraints of the Soft Landing Optimal Control Problem"
-- Simplício et al., "Guidance and Control for Powered Descent with Terrain-Relative Navigation"
+-A. Barad and S. Ghosh, "A Fuel-Efficient Free-Final-Time Guidance for Terrain-Avoided Precision Soft Landing of Spacecraft," 2025 IEEE 64th Conference on Decision and Control (CDC), Rio de Janeiro, Brazil, 2025, pp. 948-953, doi: 10.1109/CDC57313.2025.11313021.
