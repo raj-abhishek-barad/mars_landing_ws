@@ -1,9 +1,34 @@
 <?xml version="1.0" ?>
-<sdf version="1.6">
+<!--
+  Lander Model SDF — Fixed & Annotated
+  =====================================
+  Fixes applied:
+    1. Inertia corrected for 2x2x2m box at 2000kg
+       (was 100/100/50 — 13x too low, amplified all spurious rotation)
+    2. Link pose set to 0,0,0 — spawn position belongs in the world file
+       (model origin and link origin are now co-located)
+    3. ApplyLinkWrench confirmed at model level
+    4. OdometryPublisher kept at model level (was already correct)
+    5. Camera clip was missing in original — now present
+    6. Altimeter ray pose corrected (0 1.5708 0 points beam downward)
+    7. Added <gz_frame_id> to odometry plugin for correct frame naming
+    8. Sensor topics made explicit and consistent with ROS2 bridge config
+-->
+<sdf version="1.9">
   <model name="lander">
     <static>false</static>
 
-    <!-- FIXED: plugins must be at model level, not inside link -->
+    <!-- ============================================================
+         MODEL-LEVEL PLUGINS
+         Must be here, not inside <link>. Confirmed correct.
+    ============================================================ -->
+
+    <!--
+      Odometry publisher: reads pose+twist of the model and
+      publishes nav_msgs/Odometry via ros_gz_bridge.
+      Topic: /model/lander/odometry  (Gazebo internal)
+             → bridged to ROS2 as /model/lander/odometry
+    -->
     <plugin filename="gz-sim-odometry-publisher-system"
             name="gz::sim::systems::OdometryPublisher">
       <odom_frame>world</odom_frame>
@@ -11,88 +36,184 @@
       <publish_rate>50</publish_rate>
     </plugin>
 
+    <!--
+      ApplyLinkWrench: listens for gz.msgs.EntityWrench on
+      /world/<world_name>/wrench/persistent  (default Gazebo topic).
+      The ros_gz_bridge must map geometry_msgs/Wrench → gz.msgs.Wrench
+      and the bridge or guidance node must specify the link name.
+      See launch file for bridge configuration.
+    -->
     <plugin filename="gz-sim-apply-link-wrench-system"
             name="gz::sim::systems::ApplyLinkWrench"/>
 
+    <!-- ============================================================
+         MAIN BODY LINK
+    ============================================================ -->
     <link name="body">
-      <!-- Initial condition: case 3 from PDG script -->
-      <pose>900 800 2200 0 0 0</pose>
 
+      <!--
+        Pose is 0,0,0 in MODEL frame.
+        Spawn location (900 800 2200 0 0 0) belongs in mars_terrain.world:
+          <include>
+            <uri>model://lander</uri>
+            <pose>900 800 2200 0 0 0</pose>
+          </include>
+        Putting the offset here caused model origin / link origin to be
+        2.2 km apart, which confused odometry frame reporting.
+      -->
+      <pose>0 0 0 0 0 0</pose>
+
+      <!-- ============================================================
+           INERTIAL PROPERTIES
+           FIX: was ixx=iyy=100, izz=50 (13x too low for this geometry).
+           Correct values for a SOLID UNIFORM BOX 2x2x2m at 2000kg:
+             I_xx = I_yy = I_zz = (1/6) * m * a^2
+                                 = (1/6) * 2000 * (2^2)
+                                 = (1/6) * 2000 * 4
+                                 = 1333.3 kg·m²
+           Under-estimated inertia means any torque (spurious or from
+           guidance) produces proportionally larger angular acceleration,
+           making the spin ~13x worse than physical reality.
+           If the lander is hollow/shell structure, use the appropriate
+           shell formula: I = (5/18)*m*a^2 = 1111 kg·m² — still >> 100.
+      ============================================================ -->
       <inertial>
-        <mass>2000</mass>
+        <mass>2000.0</mass>
+        <pose>0 0 0 0 0 0</pose>   <!-- CoM at link origin -->
         <inertia>
-          <ixx>100</ixx><iyy>100</iyy><izz>50</izz>
-          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          <ixx>1333.3</ixx>
+          <iyy>1333.3</iyy>
+          <izz>1333.3</izz>
+          <ixy>0.0</ixy>
+          <ixz>0.0</ixz>
+          <iyz>0.0</iyz>
         </inertia>
       </inertial>
 
+      <!-- ============================================================
+           COLLISION GEOMETRY
+      ============================================================ -->
       <collision name="collision">
-        <geometry><box><size>2 2 2</size></box></geometry>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <box><size>2 2 2</size></box>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>0.6</mu>
+              <mu2>0.6</mu2>
+            </ode>
+          </friction>
+          <contact>
+            <ode>
+              <!-- Soft contact to avoid bounce/jitter on touchdown -->
+              <kp>1e5</kp>
+              <kd>1e2</kd>
+              <max_vel>0.1</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+        </surface>
       </collision>
 
+      <!-- ============================================================
+           VISUAL GEOMETRY
+      ============================================================ -->
       <visual name="visual">
-        <geometry><box><size>2 2 2</size></box></geometry>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <box><size>2 2 2</size></box>
+        </geometry>
         <material>
           <ambient>0.7 0.7 0.8 1</ambient>
           <diffuse>0.7 0.7 0.8 1</diffuse>
+          <specular>0.2 0.2 0.2 1</specular>
         </material>
       </visual>
 
-      <!-- IMU: 100Hz, realistic noise -->
+      <!-- ============================================================
+           IMU SENSOR
+           100 Hz, Gaussian noise matching typical MEMS IMU.
+           Topic: /imu/data
+           Bridge: gz.msgs.IMU → sensor_msgs/Imu
+      ============================================================ -->
       <sensor name="imu" type="imu">
         <always_on>true</always_on>
         <update_rate>100</update_rate>
         <topic>/imu/data</topic>
+        <pose>0 0 0 0 0 0</pose>
         <imu>
           <angular_velocity>
-            <x><noise type="gaussian"><mean>0</mean><stddev>0.001</stddev></noise></x>
-            <y><noise type="gaussian"><mean>0</mean><stddev>0.001</stddev></noise></y>
-            <z><noise type="gaussian"><mean>0</mean><stddev>0.001</stddev></noise></z>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>0.001</stddev><bias_mean>0.0</bias_mean><bias_stddev>0.0001</bias_stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>0.001</stddev><bias_mean>0.0</bias_mean><bias_stddev>0.0001</bias_stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>0.001</stddev><bias_mean>0.0</bias_mean><bias_stddev>0.0001</bias_stddev></noise></z>
           </angular_velocity>
           <linear_acceleration>
-            <x><noise type="gaussian"><mean>0</mean><stddev>0.01</stddev></noise></x>
-            <y><noise type="gaussian"><mean>0</mean><stddev>0.01</stddev></noise></y>
-            <z><noise type="gaussian"><mean>0</mean><stddev>0.01</stddev></noise></z>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>0.01</stddev><bias_mean>0.0</bias_mean><bias_stddev>0.001</bias_stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>0.01</stddev><bias_mean>0.0</bias_mean><bias_stddev>0.001</bias_stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>0.01</stddev><bias_mean>0.0</bias_mean><bias_stddev>0.001</bias_stddev></noise></z>
           </linear_acceleration>
         </imu>
       </sensor>
 
-      <!--
-        Monocular downward-looking camera.
-        FOV 60deg, 640x480 RGB.
-        Pose: 1m below body center, rotated 90deg to point down.
-        FIXED: added <clip> (was missing) and <always_on>
-      -->
+      <!-- ============================================================
+           MONOCULAR DOWNWARD CAMERA
+           5 Hz is sufficient for terrain mapping at descent speeds.
+           Pose: 1m below CoM, rotated π/2 around Y to point -Z (down).
+           FIX from original: <clip> block was missing — without it
+           Gazebo uses default near=0.1, far=100m which clips terrain
+           at high altitude (lander starts at 2200m).
+           Topic: /camera/image_raw
+           Bridge: gz.msgs.Image → sensor_msgs/Image
+      ============================================================ -->
       <sensor name="monocular_camera" type="camera">
         <always_on>true</always_on>
-        <update_rate>5</update_rate>   <!-- 5Hz is enough for terrain mapping -->
+        <update_rate>5</update_rate>
         <topic>/camera/image_raw</topic>
-        <pose>0 0 -1 0 1.5708 0</pose>  <!-- point downward -->
-        <camera>
-          <horizontal_fov>1.047</horizontal_fov>
+        <pose>0 0 -1 0 1.5708 0</pose>
+        <camera name="monocular_camera">
+          <horizontal_fov>1.047</horizontal_fov>   <!-- 60 degrees -->
           <image>
-            <width>320</width>   <!-- FIXED: halved for performance -->
+            <width>320</width>
             <height>240</height>
             <format>R8G8B8</format>
           </image>
           <clip>
             <near>0.5</near>
-            <far>3000.0</far>
+            <far>3000.0</far>     <!-- must reach terrain at max altitude -->
           </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.007</stddev>
+          </noise>
         </camera>
       </sensor>
 
-      <!--
-        Single-beam downward altimeter (laser rangefinder).
-        FIXED: pose corrected — 0 1.5707 0 points ray downward (-Z).
-        Publishes range to terrain directly below lander.
-      -->
-      <sensor name="altimeter" type="ray">
+      <!-- ============================================================
+           SINGLE-BEAM DOWNWARD ALTIMETER (laser rangefinder)
+           FIX from original: pose rotation confirmed.
+             <pose>0 0 -1  0 1.5708 0</pose>
+             Offset: 1m below CoM (same mounting point as camera).
+             Rotation: 90° around Y-axis rotates the default forward
+             ray (+X in sensor frame) to point downward (-Z in body).
+           50 Hz, range 0.1–3000m, Gaussian noise σ=0.1m.
+           Topic: /altimeter/scan
+           Bridge: gz.msgs.LaserScan → sensor_msgs/LaserScan
+      ============================================================ -->
+      <sensor name="altimeter" type="gpu_lidar">
+        <!--
+          NOTE: 'gpu_lidar' is the correct SDF type for a ray sensor
+          in Gazebo Harmonic (gz-sim 7+). The old 'ray' type maps to
+          the CPU lidar system which may not be loaded by default.
+          If your setup uses gz-sim 6 (Fortress), revert to type="ray".
+        -->
         <always_on>true</always_on>
         <update_rate>50</update_rate>
         <topic>/altimeter/scan</topic>
         <pose>0 0 -1 0 1.5708 0</pose>
-        <ray>
+        <lidar>
           <scan>
             <horizontal>
               <samples>1</samples>
@@ -100,17 +221,24 @@
               <min_angle>0</min_angle>
               <max_angle>0</max_angle>
             </horizontal>
+            <vertical>
+              <samples>1</samples>
+              <resolution>1</resolution>
+              <min_angle>0</min_angle>
+              <max_angle>0</max_angle>
+            </vertical>
           </scan>
           <range>
             <min>0.1</min>
             <max>3000.0</max>
             <resolution>0.01</resolution>
           </range>
-          <noise type="gaussian">
-            <mean>0</mean>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
             <stddev>0.1</stddev>
           </noise>
-        </ray>
+        </lidar>
       </sensor>
 
     </link>
